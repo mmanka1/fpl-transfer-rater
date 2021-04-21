@@ -5,15 +5,34 @@ import requests
 import pandas as pd
 from understat import Understat
 
+semaphore = asyncio.Semaphore(10)
+
 async def get_pl_player():
     async with aiohttp.ClientSession() as session:
         understat = Understat(session)
-        return await understat.get_league_players("epl", 2021)
+        return await understat.get_league_players("epl", 2020)
 
-async def get_player_match_stats(player_id, player_name):
+async def get_player_match_stats(player_id, player_name, player_team):
     async with aiohttp.ClientSession() as session:
         understat = Understat(session)
-        return await understat.get_player_matches(player_id), player_name
+        return await understat.get_player_matches(player_id, {"season": "2020"}), player_name, player_team
+
+async def get_team_xGA(match, player, team):
+    date = match['date'] 
+    async with semaphore:
+        async with aiohttp.ClientSession() as session:
+            understat = Understat(session)
+            team_results = await understat.get_team_results(team, 2020)
+            result = None
+            for res in team_results:
+                if res["datetime"].split(" ")[0] == date:
+                    result = res
+            if result is not None:
+                if result['side'] == "h":
+                    return player, match, result["xG"]["a"]
+                else:
+                    return player, match, result["xG"]["h"]
+            return None
 
 async def getPlayers():
     return await get_pl_player()
@@ -70,22 +89,25 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     task1 = loop.create_task(getPlayers())
     players = loop.run_until_complete(task1)
+    print(len(players))
 
     #Task 2 - get player match stats - including underlying data
-    task2 = [get_player_match_stats(player['id'], player['player_name']) for player in players]
-    results = asyncio.gather(*task2, return_exceptions=True)
-    match_stats = loop.run_until_complete(results)
-    
-    player_matches = []
-    for player in match_stats:
-        if type(player) is not UnboundLocalError:
-            for match in player[0]:
-                player_matches.append((player[1], match))
+    task2 = [get_player_match_stats(player['id'], player['player_name'], player['team_title']) for player in players]
+    results2 = asyncio.gather(*task2, return_exceptions=True)
+    match_stats = loop.run_until_complete(results2)
+
+    #Task 3  - get team match stats - including underlying data
+    task3 = [get_team_xGA(match, player[1], player[2]) for player in match_stats if type(player) is not UnboundLocalError for match in player[0]]
+    results3 = asyncio.gather(*task3, return_exceptions=True)
+    player_matches = loop.run_until_complete(results3)
+    player_matches = [player for player in player_matches if type(player) is not UnboundLocalError and player is not None]  #Filter player matches list
+    # player_matches = [player for player in player_matches if type(player) is aiohttp.client_exceptions.ClientConnectorError]
+    print(len(player_matches))
 
     player_name = [match_player[0] for match_player in player_matches]
     unique_players = set(player_name)
 
-    #Crete request to fpl data endpoint
+    # #Create request to fpl data endpoint
     url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
     r = requests.get(url)
     json = r.json()
@@ -124,6 +146,7 @@ if __name__ == '__main__':
     player_xGChain = [match_stat[1]['xGChain'] for match_stat in player_matches]
     player_xGBuildup = [match_stat[1]['xGBuildup'] for match_stat in player_matches]
     player_minutes = [match_stat[1]['time'] for match_stat in player_matches]
+    team_xGA = [match_stat[2] for match_stat in player_matches]
     game_date = [match_stat[1]['date'] for match_stat in player_matches]
 
     #Prepare dataframe
@@ -131,14 +154,15 @@ if __name__ == '__main__':
          'xG': player_xG,
          'npxG': player_npxG,
          'npG': player_npG,
-         'Goals': player_G,
+         'goals': player_G,
          'xA': player_xA,
-         'Assists': player_A,
-         'Key Passes': player_KP,
-         'Shots': player_shots,
+         'assists': player_A,
+         'key_passes': player_KP,
+         'shots': player_shots,
          'xGChain': player_xGChain,
          'xGBuildup': player_xGBuildup,
          'minutes': player_minutes,
+         'team_xGA': team_xGA,
          'date': game_date
     }
 
@@ -162,6 +186,8 @@ if __name__ == '__main__':
     #Remove kickoff date column
     stats_df.drop(['date'], axis=1, inplace=True)
     
+    #Example output
     print(stats_df.loc[stats_df['player'] == 'Harry Kane'].head(10))
-    #Write to csv
+
+    #Write dataframe to csv
     stats_df.to_csv('form_fixture_stats.csv')
