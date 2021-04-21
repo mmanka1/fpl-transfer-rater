@@ -89,7 +89,6 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     task1 = loop.create_task(getPlayers())
     players = loop.run_until_complete(task1)
-    print(len(players))
 
     #Task 2 - get player match stats - including underlying data
     task2 = [get_player_match_stats(player['id'], player['player_name'], player['team_title']) for player in players]
@@ -102,7 +101,6 @@ if __name__ == '__main__':
     player_matches = loop.run_until_complete(results3)
     player_matches = [player for player in player_matches if type(player) is not UnboundLocalError and player is not None]  #Filter player matches list
     # player_matches = [player for player in player_matches if type(player) is aiohttp.client_exceptions.ClientConnectorError]
-    print(len(player_matches))
 
     player_name = [match_player[0] for match_player in player_matches]
     unique_players = set(player_name)
