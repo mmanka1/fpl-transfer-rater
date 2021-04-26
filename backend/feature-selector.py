@@ -10,7 +10,7 @@ df_players.sort_values(by=['opponent'], inplace=True)
 print(df_players)
 
 #Drop columns corresponding to higher VIFs
-df_players.drop(['player', 'opponent', 'yellow_cards', 'red_cards', 'xGBuildup', 'goals', 'assists', 'minutes', 'npxG'], axis=1, inplace=True)
+df_players.drop(['player', 'opponent', 'yellow_cards', 'red_cards', 'xGBuildup', 'assists', 'npxG', 'goals'], axis=1, inplace=True)
 
 #Find highly correlated feature variables
 vif_data = pd.DataFrame() 
