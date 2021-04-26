@@ -3,6 +3,7 @@ import json
 import aiohttp
 import requests
 import pandas as pd
+import os
 from understat import Understat
 
 semaphore = asyncio.Semaphore(10)
@@ -188,4 +189,4 @@ if __name__ == '__main__':
     print(stats_df.loc[stats_df['player'] == 'Harry Kane'].head(10))
 
     #Write dataframe to csv
-    stats_df.to_csv('form_fixture_stats.csv')
+    stats_df.to_csv(os.getcwd() + '\\backend\data\\form_fixture_stats.csv')
