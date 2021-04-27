@@ -12,6 +12,8 @@ df_players.drop(['player', 'opponent'], axis=1, inplace=True)
 
 #Get features
 X = df_players.drop(['points'], axis=1)
+#Get dependent variable
+y = df_players.points
 
 #Find highly correlated feature variables
 vif_data = pd.DataFrame() 
@@ -20,7 +22,7 @@ vif_data["VIF"] = [variance_inflation_factor(X.values, i) for i in range(len(X.c
 print(vif_data)
 
 #Drop columns corresponding to features with higher VIFs and check new VIFs
-X_cleaned = X.drop(['yellow_cards', 'red_cards', 'npG', 'xGBuildup'], axis=1)
+X_cleaned = X.drop(['yellow_cards', 'red_cards', 'npG', 'xGBuildup'], axis=1) 
 
 print('\nAfter removing features with high VIF:')
 vif_data_cleaned = pd.DataFrame() 
@@ -29,11 +31,6 @@ vif_data_cleaned["VIF"] = [variance_inflation_factor(X_cleaned.values, i) for i 
 print(vif_data_cleaned)
 
 #Write cleaned dataframe to csv
-df_players.to_csv(os.getcwd() + '\\backend\data\\cleaned_form_fixture_stats.csv')
-
-
-
-
-
-
-
+df_cleaned = pd.DataFrame(data=X_cleaned)
+df_cleaned["points"] = y
+X_cleaned.to_csv(os.getcwd() + '\\backend\data\\cleaned_form_fixture_stats.csv')
