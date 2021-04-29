@@ -103,9 +103,3 @@ class PointsPredictor:
 
     def get_predictions(self, testData):
         return self.best_fit_model.predict(testData)
-        # d = {
-        #     'Actual Points': self.ytest[:],
-        #     'Predicted Points': self.ypred
-        # }
-        # df_points = pd.DataFrame(data=d)
-        # return df_points
