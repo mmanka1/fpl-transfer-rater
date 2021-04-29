@@ -83,7 +83,7 @@ class PlayerController:
                 if id == team['id']:
                     return team['strength_attack_home'], team['strength_attack_away'], team['strength_defence_home'], team['strength_defence_away']
 
-    def predict_player_points(self, next_opponents):
+    def predict_player_points(self, next_opponents, later_gw=0):
         loop = asyncio.get_event_loop()
         task1 = loop.create_task(self.get_player(self.player_name))
         player_id, player_team = loop.run_until_complete(task1)
@@ -95,7 +95,8 @@ class PlayerController:
         fpl_player_id = self.get_fpl_player_id(self.player_name)
         fpl_matches = self.get_player_fpl_matches(fpl_player_id)
         fpl_fixtures = self.get_player_fpl_fixtures(fpl_player_id)
-
+        
+        print(fpl_fixtures[later_gw:next_opponents])
         #Compute median of data pertaining to the last 6 matches for player
         games_considered = 6
         xG_lastsix = np.median([float(match['xG']) for match in matches[:games_considered]])
@@ -121,8 +122,8 @@ class PlayerController:
         #If a few games left or less, only need to consider those games
         if len(fpl_fixtures) < next_opponents:
             next_opponents = len(fpl_fixtures)
-        next_opponent_attack_strength = np.median([float(self.get_fpl_opponent_strength(match['team_a'])[1]) if match['is_home'] is True else float(self.get_fpl_opponent_strength(match['team_h'])[1]) for match in fpl_fixtures[:next_opponents]])
-        next_opponent_defense_strength = np.median([float(self.get_fpl_opponent_strength(match['team_a'])[3]) if match['is_home'] is True else float(self.get_fpl_opponent_strength(match['team_h'])[2]) for match in fpl_fixtures[:next_opponents]])
+        next_opponent_attack_strength = np.median([float(self.get_fpl_opponent_strength(match['team_a'])[1]) if match['is_home'] is True else float(self.get_fpl_opponent_strength(match['team_h'])[1]) for match in fpl_fixtures[later_gw:next_opponents]])
+        next_opponent_defense_strength = np.median([float(self.get_fpl_opponent_strength(match['team_a'])[3]) if match['is_home'] is True else float(self.get_fpl_opponent_strength(match['team_h'])[2]) for match in fpl_fixtures[later_gw:next_opponents]])
 
         #Check for player double gameweeks
 
@@ -167,7 +168,7 @@ class PlayerController:
 
 def main():
     player_name = "Diogo Jota"
-    next_opponents = 1
+    next_opponents = 5
     playerController = PlayerController(player_name=player_name)
     prediction, cv_err, generalization_err = playerController.predict_player_points(next_opponents=next_opponents)
     print('Predicted Points over the next %d gameweeks: %f' % (next_opponents, prediction))
