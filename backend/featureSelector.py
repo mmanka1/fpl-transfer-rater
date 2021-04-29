@@ -9,6 +9,8 @@ df_players = pd.read_csv(os.getcwd() + '\\backend\data\\form_fixture_stats.csv',
 df_players.sort_values(by=['opponent'], inplace=True)
 #Drop non-numeric columns
 df_players.drop(['player', 'opponent'], axis=1, inplace=True)
+#Drop rows in which players have played less than 5 minutes
+df_players.drop(df_players[df_players['minutes'] < 5].index, inplace=True)
 
 #Get features
 X = df_players.drop(['points'], axis=1)

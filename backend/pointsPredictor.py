@@ -100,7 +100,7 @@ class PointsPredictor:
         return self.generalization_error
 
     def get_feature_importance(self):
-        plot_importance(self.best_fit_model.get_params()['steps'][0][1])
+        plot_importance(self.best_fit_model.named_steps['regression'])
         pyplot.show()
 
     def get_test_error(self, model):

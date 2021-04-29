@@ -96,7 +96,6 @@ class PlayerController:
         fpl_matches = self.get_player_fpl_matches(fpl_player_id)
         fpl_fixtures = self.get_player_fpl_fixtures(fpl_player_id)
         
-        print(fpl_fixtures[later_gw:next_opponents])
         #Compute median of data pertaining to the last 6 matches for player
         games_considered = 6
         xG_lastsix = np.median([float(match['xG']) for match in matches[:games_considered]])
