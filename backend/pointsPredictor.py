@@ -92,36 +92,20 @@ class PointsPredictor:
             return cv_error_poly, generalization_error
 
     def get_test_error(self, model):
+        self.best_fit_model = model
         #Fit model
-        model.fit(self.Xtrain, self.ytrain)
+        self.best_fit_model.fit(self.Xtrain, self.ytrain)
         #Get predictions
-        self.ypred = model.predict(self.Xtest)
+        ypred = self.best_fit_model.predict(self.Xtest)
         #Compute test errors
-        test_errors = (self.ytest - self.ypred)**2
+        test_errors = (self.ytest - ypred)**2
         return test_errors.mean()
 
-    def get_predictions(self):
-        d = {
-            'Actual Points': self.ytest[:],
-            'Predicted Points': self.ypred
-        }
-        df_points = pd.DataFrame(data=d)
-        return df_points
-
-        
-def main():
-    df_players = pd.read_csv(os.getcwd() + '\\backend\data\\cleaned_form_fixture_stats.csv')
-    predictor = PointsPredictor(df_players)
-
-    selected_params = predictor.tune_params()
-    n_estimators = selected_params["n_estimators"]
-    max_depth = selected_params["max_depth"]
-
-    cv_error, generalization_err = predictor.select_model(n_estimators, max_depth)
-    print('Cross Validation Error of best model: %f' % cv_error)
-    print('Generalization Error of best model: %f' % generalization_err)
-
-    print(predictor.get_predictions())
-
-if __name__ == '__main__':
-    main()
+    def get_predictions(self, testData):
+        return self.best_fit_model.predict(testData)
+        # d = {
+        #     'Actual Points': self.ytest[:],
+        #     'Predicted Points': self.ypred
+        # }
+        # df_points = pd.DataFrame(data=d)
+        # return df_points
