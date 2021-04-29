@@ -2,19 +2,21 @@ import pandas as pd
 import numpy as np
 import os
 import seaborn as sns
-from xgboost import XGBRegressor 
+from xgboost import XGBRegressor, plot_importance
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
+from matplotlib import pyplot
 
-class GoalsConceded2(BaseEstimator,TransformerMixin):  
+class OppStrength2(BaseEstimator,TransformerMixin):  
     def fit(self,X,y=None):
         return self
     
     def transform(self,X,y=None):
-        X = X.assign(team_goals_conceded2 = X.team_goals_conceded**2)
+        X = X.assign(opponent_defense_strength2 = X.opponent_defense_strength**2)
+        X = X.assign(opponent_attack_strength2 = X.opponent_attack_strength**2)
         return X
         
 class PointsPredictor:
@@ -52,9 +54,9 @@ class PointsPredictor:
             ))
         ])
 
-        #Quadratic terms for goals conceded - makes no notable difference
+        #Quadratic terms for opponent strength - makes no notable difference
         self.model_opp_str = Pipeline([
-            ('goalsConceded2', GoalsConceded2()),
+            ('opponentStrength', OppStrength2()),
             ('regression', XGBRegressor(
                 verbosity = 0,
                 objective ='reg:squarederror', 
@@ -85,11 +87,21 @@ class PointsPredictor:
         print('cv_score_poly %f\n' % cv_error_poly)
 
         if (cv_error_lin < cv_error_poly):
-            generalization_error = self.get_test_error(self.model_lin)
-            return cv_error_lin, generalization_error
+            self.generalization_error = self.get_test_error(self.model_lin)
+            self.cv_error = cv_error_lin
         else:
-            generalization_error = self.get_test_error(self.model_poly)
-            return cv_error_poly, generalization_error
+            self.generalization_error = self.get_test_error(self.model_poly)
+            self.cv_error = cv_error_poly
+    
+    def get_cv_error(self):
+        return self.cv_error
+
+    def get_generalization_error(self):
+        return self.generalization_error
+
+    def get_feature_importance(self):
+        plot_importance(self.best_fit_model.get_params()['steps'][0][1])
+        pyplot.show()
 
     def get_test_error(self, model):
         self.best_fit_model = model

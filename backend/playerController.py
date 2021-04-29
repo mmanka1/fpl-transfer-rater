@@ -5,6 +5,7 @@ import requests
 from understat import Understat
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot
 
 import sys
 sys.path.append('../')
@@ -19,7 +20,6 @@ class PlayerController:
         async with aiohttp.ClientSession() as session:
             understat = Understat(session)
             player = await understat.get_league_players("epl", 2020, player_name=name)
-            print(player)
             return player[0]['id'], player[0]['team_title']
 
     async def get_player_matches(self, id):
@@ -156,28 +156,23 @@ class PlayerController:
         max_depth = selected_params["max_depth"]
 
         #Choose best model using these selected parameters
-        self.cv_error, self.generalization_err = self.predictor.select_model(n_estimators, max_depth)
-
-        #Get points prediction
-        pred = self.predictor.get_predictions(test_df)
-        return pred[0]
+        self.predictor.select_model(n_estimators, max_depth)
         
-        # print('Cross Validation Error of best model: %f' % cv_error)
-        # print('Generalization Error of best model: %f' % generalization_err)
-
-    def get_cv_error(self):
-        return self.cv_error
-
-    def get_generalization_error(self):
-        return self.generalization_err
+        #Get points prediction and errors
+        pred = self.predictor.get_predictions(test_df)
+        cv_error = self.predictor.get_cv_error()
+        generalization_error = self.predictor.get_generalization_error()
+        self.predictor.get_feature_importance()
+        return pred[0], cv_error, generalization_error
 
 def main():
     player_name = "Diogo Jota"
-    next_opponents = 5
+    next_opponents = 1
     playerController = PlayerController(player_name=player_name)
-    print('Predicted Points over the next %d gameweeks: %f' % (next_opponents, playerController.predict_player_points(next_opponents=next_opponents)))
-    print('CV Error: %f' % playerController.get_cv_error())
-    print('Generalization Error: %f' % playerController.get_generalization_error())
+    prediction, cv_err, generalization_err = playerController.predict_player_points(next_opponents=next_opponents)
+    print('Predicted Points over the next %d gameweeks: %f' % (next_opponents, prediction))
+    print('CV Error: %f' % cv_err)
+    print('Generalization Error: %f' % generalization_err)
 
 if __name__ == '__main__':
     main()
