@@ -83,6 +83,22 @@ class PlayerController:
                 if id == team['id']:
                     return team['strength_attack_home'], team['strength_attack_away'], team['strength_defence_home'], team['strength_defence_away']
 
+    def model_player_points(self):
+        #Read csv file for input into prediction model
+        df_players = pd.read_csv(os.getcwd() + '\\backend\data\\cleaned_form_fixture_stats.csv', index_col=0)
+        self.predictor = PointsPredictor(df_players)
+
+        #Choose best parameters for model
+        selected_params = self.predictor.tune_params()
+        n_estimators = selected_params["n_estimators"]
+        max_depth = selected_params["max_depth"]
+
+        #Choose best model using these selected parameters
+        self.predictor.select_model(n_estimators, max_depth)
+
+        #train best model
+        self.predictor.train_model()
+
     def predict_player_points(self, next_opponents, later_gw=0):
         loop = asyncio.get_event_loop()
         task1 = loop.create_task(self.get_player(self.player_name))
@@ -145,34 +161,22 @@ class PlayerController:
             'opponent_defense_strength': [next_opponent_defense_strength]
         }
         test_df = pd.DataFrame(data=player_data)
-
-        #Read csv file for input into prediction model
-        df_players = pd.read_csv(os.getcwd() + '\\backend\data\\cleaned_form_fixture_stats.csv', index_col=0)
-        self.predictor = PointsPredictor(df_players)
-
-        #Choose best parameters for model
-        selected_params = self.predictor.tune_params()
-        n_estimators = selected_params["n_estimators"]
-        max_depth = selected_params["max_depth"]
-
-        #Choose best model using these selected parameters
-        self.predictor.select_model(n_estimators, max_depth)
         
         #Get points prediction and errors
         pred = self.predictor.get_predictions(test_df)
         cv_error = self.predictor.get_cv_error()
-        generalization_error = self.predictor.get_generalization_error()
-        self.predictor.get_feature_importance()
-        return pred[0], cv_error, generalization_error
+        # self.predictor.get_feature_importance()
+        return pred[0], cv_error
 
 def main():
-    player_name = "Diogo Jota"
+    player_name = "Harry Kane"
     next_opponents = 5
+
     playerController = PlayerController(player_name=player_name)
-    prediction, cv_err, generalization_err = playerController.predict_player_points(next_opponents=next_opponents)
+    playerController.model_player_points()
+    prediction, cv_err = playerController.predict_player_points(next_opponents=next_opponents, later_gw=4)
     print('Predicted Points over the next %d gameweeks: %f' % (next_opponents, prediction))
     print('CV Error: %f' % cv_err)
-    print('Generalization Error: %f' % generalization_err)
 
 if __name__ == '__main__':
     main()
