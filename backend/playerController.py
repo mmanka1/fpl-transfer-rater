@@ -28,7 +28,7 @@ class PlayerController:
             player_matches = await understat.get_player_matches(id)
             return player_matches
 
-    def get_fpl_player_id(self, name):
+    def find_player(self, name):
         name_split = name.split(' ')
         url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
         r = requests.get(url)
@@ -36,10 +36,26 @@ class PlayerController:
         players = json['elements']
         for player in players:
             if name_split[0] in player['first_name'].split(' ') and name_split[len(name_split) - 1] in player['second_name'].split(' '):
-                return player['id']
+                return player
             else: 
                 if name_split[0] in player['second_name'].split(' ') and name_split[len(name_split) - 1] in player['first_name'].split(' '):
-                    return player['id']
+                    return player
+
+    def get_fpl_player_id(self, name):
+        return self.find_player(name)['id']
+
+    def get_player_playing_chance(self, name):
+        player = self.find_player(name)
+        #Get chance of playing based on player fitness
+        fitness = player['chance_of_playing_next_round'] if player['chance_of_playing_next_round'] is not None else 100
+        #Find number of minutes played recently by player
+        id = player['id']
+        matches = self.get_player_fpl_matches(id)
+        total_minutes_played_lastthree = np.sum([match['minutes'] for match in matches[len(matches)-3:len(matches)]])
+        minutes_played_per_game = total_minutes_played_lastthree/3
+
+        playing_chance = (minutes_played_per_game * (fitness/100))/90
+        return playing_chance
 
     def get_player_fpl_matches(self, id):
         if id is not None:
@@ -132,13 +148,13 @@ class PlayerController:
         task3 = [self.get_team_stats(match, player_team) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)]]
         results3 = asyncio.gather(*task3, return_exceptions=True)
         team_stats = loop.run_until_complete(results3)
+        team_xGA_lastsix = np.median([float(stat[0]) for stat in team_stats if stat is not None])
+        team_xG_lastsix = np.median([float(stat[1]) for stat in team_stats if stat is not None])
 
-        team_xGA_lastsix = np.median([float(stat[0]) for stat in team_stats])
-        team_xG_lastsix = np.median([float(stat[1]) for stat in team_stats])
-
-        team_goals_scored_lastsix = np.median([ float(match['team_h_score']) if match['was_home'] is True else float(match['team_a_score']) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)]])
-        team_goals_conceded_lastsix = np.median([float(match['goals_conceded']) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)]])
-        saves_lastsix = np.median([float(match['saves']) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)]])
+        #Team goals scored and conceded
+        team_goals_scored_lastsix = np.median([float(match['team_h_score']) if match['was_home'] is True else float(match['team_a_score']) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)] if match['team_h_score'] and match['team_a_score'] is not None])
+        team_goals_conceded_lastsix = np.median([float(match['goals_conceded']) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)] if match['team_h_score'] and match['team_a_score'] is not None])
+        saves_lastsix = np.median([float(match['saves']) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)] if match['team_h_score'] and match['team_a_score'] is not None])
 
         #If a few games left or less, only need to consider those games
         if len(fpl_fixtures) < next_opponents:
@@ -175,15 +191,17 @@ class PlayerController:
         return pred[0], cv_error
 
 def main():
-    player_name = "Kelechi Iheanacho"
-    next_opponents = 5
+    player_name = "Riyad Mahrez"
+    next_opponents = 1
 
     playerController = PlayerController(player_name=player_name)
     playerController.model_player_points()
-    playerController.model_features()
-    prediction, cv_err = playerController.predict_player_points(next_opponents=next_opponents, later_gw=2)
+
+    prediction, cv_err = playerController.predict_player_points(next_opponents=next_opponents, later_gw=0)
     print('Predicted Points over the next %d gameweeks: %f' % (next_opponents, prediction))
     print('CV Error: %f' % cv_err)
+
+    print(playerController.get_player_playing_chance(player_name))
 
 if __name__ == '__main__':
     main()
