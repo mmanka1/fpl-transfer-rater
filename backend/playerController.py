@@ -57,7 +57,8 @@ class PlayerController:
             return json['fixtures']
         return None
 
-    async def get_team_xGA(self, match, team):
+    #Get team xGA and xG
+    async def get_team_stats(self, match, team):
         date = match['kickoff_time'] 
         async with aiohttp.ClientSession() as session:
             understat = Understat(session)
@@ -68,9 +69,9 @@ class PlayerController:
                     result = res
             if result is not None:
                 if result['side'] == "h":
-                    return result["xG"]["a"]
+                    return result["xG"]["a"], result["xG"]["h"]
                 else:
-                    return result["xG"]["h"]
+                    return result["xG"]["h"], result["xG"]["a"]
             return None
 
     def get_fpl_opponent_strength(self, id):
@@ -99,6 +100,9 @@ class PlayerController:
         #train best model
         self.predictor.train_model()
 
+    def model_features(self):
+        self.predictor.get_feature_importance()
+
     def predict_player_points(self, next_opponents, later_gw=0):
         loop = asyncio.get_event_loop()
         task1 = loop.create_task(self.get_player(self.player_name))
@@ -124,11 +128,13 @@ class PlayerController:
         xGChain_lastsix = np.median([float(match['xGChain']) for match in matches[:games_considered]])
         minutes_lastsix = np.median([float(match['time']) for match in matches[:games_considered]])
 
-        #Team xGA
-        task3 = [self.get_team_xGA(match, player_team) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)]]
+        #Team xGA and xG
+        task3 = [self.get_team_stats(match, player_team) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)]]
         results3 = asyncio.gather(*task3, return_exceptions=True)
-        team_xGAs = loop.run_until_complete(results3)
-        team_xGA_lastsix = np.median([float(xGA) for xGA in team_xGAs])
+        team_stats = loop.run_until_complete(results3)
+
+        team_xGA_lastsix = np.median([float(stat[0]) for stat in team_stats])
+        team_xG_lastsix = np.median([float(stat[1]) for stat in team_stats])
 
         team_goals_scored_lastsix = np.median([ float(match['team_h_score']) if match['was_home'] is True else float(match['team_a_score']) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)]])
         team_goals_conceded_lastsix = np.median([float(match['goals_conceded']) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)]])
@@ -149,11 +155,12 @@ class PlayerController:
             'goals': [goals_lastsix],
             'xA': [xA_lastsix],
             'assists': [assists_lastsix],
-            'key_passes	': [key_passes_lastsix],
+            'key_passes': [key_passes_lastsix],
             'shots': [shots_lastsix],
             'xGChain': [xGChain_lastsix],
             'minutes': [minutes_lastsix],
             'team_xGA': [team_xGA_lastsix],
+            'team_xG': [team_xG_lastsix],
             'team_goals_conceded': [team_goals_conceded_lastsix],
             'team_goals_scored': [team_goals_scored_lastsix],
             'saves': [saves_lastsix],
@@ -165,16 +172,16 @@ class PlayerController:
         #Get points prediction and errors
         pred = self.predictor.get_predictions(test_df)
         cv_error = self.predictor.get_cv_error()
-        # self.predictor.get_feature_importance()
         return pred[0], cv_error
 
 def main():
     player_name = "Kelechi Iheanacho"
-    next_opponents = 2
+    next_opponents = 5
 
     playerController = PlayerController(player_name=player_name)
     playerController.model_player_points()
-    prediction, cv_err = playerController.predict_player_points(next_opponents=next_opponents)
+    playerController.model_features()
+    prediction, cv_err = playerController.predict_player_points(next_opponents=next_opponents, later_gw=2)
     print('Predicted Points over the next %d gameweeks: %f' % (next_opponents, prediction))
     print('CV Error: %f' % cv_err)
 

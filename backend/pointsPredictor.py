@@ -8,16 +8,8 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.compose import ColumnTransformer
 from matplotlib import pyplot
-
-class OppStrength2(BaseEstimator,TransformerMixin):  
-    def fit(self,X,y=None):
-        return self
-    
-    def transform(self,X,y=None):
-        X = X.assign(opponent_defense_strength2 = X.opponent_defense_strength**2)
-        X = X.assign(opponent_attack_strength2 = X.opponent_attack_strength**2)
-        return X
         
 #Points predictor model which uses gradient boosting
 class PointsPredictor:
@@ -48,9 +40,16 @@ class PointsPredictor:
             ))
         ])
 
-        #Quadratic terms for opponent strength - makes no notable difference
+        #Include Quadratic and interaction terms for opponent strength
+        list_of_transforms = [
+            ('square_opp_att_str', PolynomialFeatures(degree = 2, include_bias=True, interaction_only=False), ['opponent_attack_strength']),
+            ('square_opp_def_str', PolynomialFeatures(degree = 2, include_bias=True, interaction_only=False), ['opponent_defense_strength']),
+        ]
+        #remainder='passthrough' means that untransformed features are left alone and are not altered or thrown away.  Very important!!!
+        ct = ColumnTransformer(list_of_transforms, remainder='passthrough')
+
         model_opp_str = Pipeline([
-            ('opponentStrength', OppStrength2()),
+            ('column_transformer', ct),
             ('regression', XGBRegressor(
                 verbosity = 0,
                 objective ='reg:squarederror', 
@@ -80,12 +79,16 @@ class PointsPredictor:
         print('cv_score_opp_str %f' % cv_error_opp_str)
         print('cv_score_poly %f\n' % cv_error_poly)
 
-        if (cv_error_lin < cv_error_poly):
-            self.best_fit_model = model_lin
-            self.cv_error = cv_error_lin
+        if (cv_error_opp_str < cv_error_poly and cv_error_opp_str < cv_error_lin):
+            self.best_fit_model = model_opp_str
+            self.cv_error = cv_error_opp_str
         else:
-            self.best_fit_model = model_poly
-            self.cv_error = cv_error_poly
+            if (cv_error_lin < cv_error_poly):
+                self.best_fit_model = model_lin
+                self.cv_error = cv_error_lin
+            else:
+                self.best_fit_model = model_poly
+                self.cv_error = cv_error_poly
     
     def train_model(self):
         #Fit model to entire dataset
@@ -108,4 +111,7 @@ class PointsPredictor:
         return self.generalization_error
 
     def get_predictions(self, testData):
+        # print(testData.columns)
+        # print(self.Xtrain.columns)
+        # df_new = pd.DataFrame(testData, columns=self.Xtrain.columns)
         return self.best_fit_model.predict(testData)
