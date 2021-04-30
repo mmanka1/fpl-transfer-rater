@@ -169,12 +169,12 @@ class PlayerController:
         return pred[0], cv_error
 
 def main():
-    player_name = "Harry Kane"
-    next_opponents = 5
+    player_name = "Kelechi Iheanacho"
+    next_opponents = 2
 
     playerController = PlayerController(player_name=player_name)
     playerController.model_player_points()
-    prediction, cv_err = playerController.predict_player_points(next_opponents=next_opponents, later_gw=4)
+    prediction, cv_err = playerController.predict_player_points(next_opponents=next_opponents)
     print('Predicted Points over the next %d gameweeks: %f' % (next_opponents, prediction))
     print('CV Error: %f' % cv_err)
 

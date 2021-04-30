@@ -3,6 +3,7 @@ import json
 import aiohttp
 import requests
 import pandas as pd
+import os
 from understat import Understat
 
 semaphore = asyncio.Semaphore(10)
@@ -17,7 +18,8 @@ async def get_player_match_stats(player_id, player_name, player_team):
         understat = Understat(session)
         return await understat.get_player_matches(player_id, {"season": "2020"}), player_name, player_team
 
-async def get_team_xGA(match, player, team):
+#Get team xG and xGA
+async def get_team_stats(match, player, team):
     date = match['date'] 
     async with semaphore:
         async with aiohttp.ClientSession() as session:
@@ -28,10 +30,11 @@ async def get_team_xGA(match, player, team):
                 if res["datetime"].split(" ")[0] == date:
                     result = res
             if result is not None:
+                # return player, match, xGA, xG
                 if result['side'] == "h":
-                    return player, match, result["xG"]["a"]
+                    return player, match, result["xG"]["a"], result["xG"]["h"]
                 else:
-                    return player, match, result["xG"]["h"]
+                    return player, match, result["xG"]["h"], result["xG"]["a"]
             return None
 
 async def getPlayers():
@@ -96,7 +99,7 @@ if __name__ == '__main__':
     match_stats = loop.run_until_complete(results2)
 
     #Task 3  - get team match stats - including underlying data
-    task3 = [get_team_xGA(match, player[1], player[2]) for player in match_stats if type(player) is not UnboundLocalError for match in player[0]]
+    task3 = [get_team_stats(match, player[1], player[2]) for player in match_stats if type(player) is not UnboundLocalError for match in player[0]]
     results3 = asyncio.gather(*task3, return_exceptions=True)
     player_matches = loop.run_until_complete(results3)
     player_matches = [player for player in player_matches if type(player) is not UnboundLocalError and player is not None]  #Filter player matches list
@@ -145,23 +148,25 @@ if __name__ == '__main__':
     player_xGBuildup = [match_stat[1]['xGBuildup'] for match_stat in player_matches]
     player_minutes = [match_stat[1]['time'] for match_stat in player_matches]
     team_xGA = [match_stat[2] for match_stat in player_matches]
+    team_xG = [match_stat[3] for match_stat in player_matches]
     game_date = [match_stat[1]['date'] for match_stat in player_matches]
 
     #Prepare dataframe
     d = {'player': player_name, 
-         'xG': player_xG,
-         'npxG': player_npxG,
-         'npG': player_npG,
-         'goals': player_G,
-         'xA': player_xA,
-         'assists': player_A,
-         'key_passes': player_KP,
-         'shots': player_shots,
-         'xGChain': player_xGChain,
-         'xGBuildup': player_xGBuildup,
-         'minutes': player_minutes,
-         'team_xGA': team_xGA,
-         'date': game_date
+        'xG': player_xG,
+        'npxG': player_npxG,
+        'npG': player_npG,
+        'goals': player_G,
+        'xA': player_xA,
+        'assists': player_A,
+        'key_passes': player_KP,
+        'shots': player_shots,
+        'xGChain': player_xGChain,
+        'xGBuildup': player_xGBuildup,
+        'minutes': player_minutes,
+        'team_xGA': team_xGA,
+        'team_xG': team_xG,
+        'date': game_date
     }
 
     #Create dataframe
@@ -188,4 +193,4 @@ if __name__ == '__main__':
     print(stats_df.loc[stats_df['player'] == 'Harry Kane'].head(10))
 
     #Write dataframe to csv
-    stats_df.to_csv('form_fixture_stats.csv')
+    stats_df.to_csv(os.getcwd() + '\\backend\data\\form_fixture_stats.csv')
