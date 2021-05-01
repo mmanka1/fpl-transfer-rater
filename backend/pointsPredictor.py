@@ -111,7 +111,4 @@ class PointsPredictor:
         return self.generalization_error
 
     def get_predictions(self, testData):
-        # print(testData.columns)
-        # print(self.Xtrain.columns)
-        # df_new = pd.DataFrame(testData, columns=self.Xtrain.columns)
         return self.best_fit_model.predict(testData)

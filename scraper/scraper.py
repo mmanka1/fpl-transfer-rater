@@ -3,6 +3,7 @@ import json
 import aiohttp
 import requests
 import pandas as pd
+import numpy as np
 import os
 from understat import Understat
 
@@ -24,6 +25,10 @@ async def get_team_stats(match, player, team):
     async with semaphore:
         async with aiohttp.ClientSession() as session:
             understat = Understat(session)
+            #Get opponent stats
+            opponent_team = match['a_team'] if match['h_team'] == team else match['h_team']
+            opponent_xG, opponent_xGA = await get_opponent_stats(opponent_team)
+            #Get team stats
             team_results = await understat.get_team_results(team, 2020)
             result = None
             for res in team_results:
@@ -32,10 +37,31 @@ async def get_team_stats(match, player, team):
             if result is not None:
                 # return player, match, xGA, xG
                 if result['side'] == "h":
-                    return player, match, result["xG"]["a"], result["xG"]["h"]
+                    return player, match, result["xG"]["a"], result["xG"]["h"], opponent_xG, opponent_xGA
                 else:
-                    return player, match, result["xG"]["h"], result["xG"]["a"]
+                    return player, match, result["xG"]["h"], result["xG"]["a"], opponent_xG, opponent_xGA
             return None
+
+#Get opponents season long xGA and xG leading up to each match
+async def get_opponent_stats(opponent_team):
+    async with aiohttp.ClientSession() as session:
+        understat = Understat(session)
+        team_stats = await understat.get_team_stats(opponent_team, 2020)
+        xG = np.sum([
+            team_stats['situation']['OpenPlay']['xG'],
+            team_stats['situation']['FromCorner']['xG'],
+            team_stats['situation']['SetPiece']['xG'],
+            team_stats['situation']['DirectFreekick']['xG'],
+            team_stats['situation']['Penalty']['xG'],
+        ])
+        xGA = np.sum([
+            team_stats['situation']['OpenPlay']['against']['xG'], 
+            team_stats['situation']['FromCorner']['against']['xG'],
+            team_stats['situation']['SetPiece']['against']['xG'],
+            team_stats['situation']['DirectFreekick']['against']['xG'],
+            team_stats['situation']['Penalty']['against']['xG'],
+        ])
+        return xG, xGA
 
 async def getPlayers():
     return await get_pl_player()
@@ -103,12 +129,11 @@ if __name__ == '__main__':
     results3 = asyncio.gather(*task3, return_exceptions=True)
     player_matches = loop.run_until_complete(results3)
     player_matches = [player for player in player_matches if type(player) is not UnboundLocalError and player is not None]  #Filter player matches list
-    # player_matches = [player for player in player_matches if type(player) is aiohttp.client_exceptions.ClientConnectorError]
 
     player_name = [match_player[0] for match_player in player_matches]
     unique_players = set(player_name)
 
-    # #Create request to fpl data endpoint
+    #Create request to fpl data endpoint
     url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
     r = requests.get(url)
     json = r.json()
@@ -149,6 +174,9 @@ if __name__ == '__main__':
     player_minutes = [match_stat[1]['time'] for match_stat in player_matches]
     team_xGA = [match_stat[2] for match_stat in player_matches]
     team_xG = [match_stat[3] for match_stat in player_matches]
+    opponent_xG = [match_stat[4] for match_stat in player_matches]
+    opponent_xGA = [match_stat[5] for match_stat in player_matches]
+    team_xG = [match_stat[3] for match_stat in player_matches]
     game_date = [match_stat[1]['date'] for match_stat in player_matches]
 
     #Prepare dataframe
@@ -166,6 +194,8 @@ if __name__ == '__main__':
         'minutes': player_minutes,
         'team_xGA': team_xGA,
         'team_xG': team_xG,
+        'opponent_xGA': opponent_xGA,
+        'opponent_xG': opponent_xG,
         'date': game_date
     }
 

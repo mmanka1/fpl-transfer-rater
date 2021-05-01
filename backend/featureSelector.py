@@ -23,7 +23,9 @@ vif_data["feature"] = X.columns
 vif_data["VIF"] = [variance_inflation_factor(X.values, i) for i in range(len(X.columns))] 
 print(vif_data)
 
-#Drop columns corresponding to features with higher VIFs and check new VIFs
+#Drop columns corresponding to features with higher VIFs and check new VIFs.
+#Ignore opponent related VIFs, as these are larger due to in part that the FDR based strength values are somewhat nominal and there would likely 
+#be some correlation between team attack and defense.
 X_cleaned = X.drop(['yellow_cards', 'red_cards', 'npG', 'xGBuildup'], axis=1) 
 
 print('\nAfter removing features with high VIF:')

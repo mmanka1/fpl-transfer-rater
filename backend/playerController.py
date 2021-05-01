@@ -41,6 +41,27 @@ class PlayerController:
                 if name_split[0] in player['second_name'].split(' ') and name_split[len(name_split) - 1] in player['first_name'].split(' '):
                     return player
 
+    def find_team(self, id):
+        url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
+        r = requests.get(url)
+        json = r.json()
+        teams = json['teams']
+        for team in teams:
+            if team['id'] == id:
+                if team['name'] == "Man Utd":
+                    return "Manchester United"
+                if team['name'] == "Man City":
+                    return "Manchester City"
+                if team['name'] == "Sheffield Utd":
+                    return "Sheffield United"
+                if team['name'] == "West Brom":
+                    return "West Bromwich Albion"
+                if team['name'] == "Wolves":
+                    return "Wolverhampton Wanderers"
+                if team['name'] == "Spurs":
+                    return "Tottenham"
+                return team['name']
+
     def get_fpl_player_id(self, name):
         return self.find_player(name)['id']
 
@@ -51,7 +72,7 @@ class PlayerController:
         #Find number of minutes played recently by player
         id = player['id']
         matches = self.get_player_fpl_matches(id)
-        total_minutes_played_lastthree = np.sum([match['minutes'] for match in matches[len(matches)-3:len(matches)]])
+        total_minutes_played_lastthree = np.sum([match['minutes'] for match in matches[len(matches)-4:len(matches)-1]])
         minutes_played_per_game = total_minutes_played_lastthree/3
 
         playing_chance = (minutes_played_per_game * (fitness/100))/90
@@ -78,6 +99,7 @@ class PlayerController:
         date = match['kickoff_time'] 
         async with aiohttp.ClientSession() as session:
             understat = Understat(session)
+            #Get team stats
             team_results = await understat.get_team_results(team, 2020)
             result = None
             for res in team_results:
@@ -89,6 +111,27 @@ class PlayerController:
                 else:
                     return result["xG"]["h"], result["xG"]["a"]
             return None
+
+    #Get opponents season long xGA and xG leading up to each match
+    async def get_opponent_stats(self, opponent_team):
+        async with aiohttp.ClientSession() as session:
+            understat = Understat(session)
+            team_stats = await understat.get_team_stats(opponent_team, 2020)
+            xG = np.sum([
+                team_stats['situation']['OpenPlay']['xG'],
+                team_stats['situation']['FromCorner']['xG'],
+                team_stats['situation']['SetPiece']['xG'],
+                team_stats['situation']['DirectFreekick']['xG'],
+                team_stats['situation']['Penalty']['xG'],
+            ])
+            xGA = np.sum([
+                team_stats['situation']['OpenPlay']['against']['xG'], 
+                team_stats['situation']['FromCorner']['against']['xG'],
+                team_stats['situation']['SetPiece']['against']['xG'],
+                team_stats['situation']['DirectFreekick']['against']['xG'],
+                team_stats['situation']['Penalty']['against']['xG'],
+            ])
+            return xG, xGA
 
     def get_fpl_opponent_strength(self, id):
         url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
@@ -151,6 +194,15 @@ class PlayerController:
         team_xGA_lastsix = np.median([float(stat[0]) for stat in team_stats if stat is not None])
         team_xG_lastsix = np.median([float(stat[1]) for stat in team_stats if stat is not None])
 
+        #Get opponent teams
+        opponent_teams = [self.find_team(match['team_a']) if match['is_home'] is True else self.find_team(match['team_h']) for match in fpl_fixtures[later_gw:next_opponents]]
+        #Opponent xGA and xG
+        task4 = [self.get_opponent_stats(opponent) for opponent in opponent_teams]
+        results4 = asyncio.gather(*task4, return_exceptions=True)
+        opponent_stats = loop.run_until_complete(results4)
+        opponent_xG = np.median([float(stat[0]) for stat in opponent_stats if stat is not None])
+        opponent_xGA = np.median([float(stat[1]) for stat in opponent_stats if stat is not None])
+
         #Team goals scored and conceded
         team_goals_scored_lastsix = np.median([float(match['team_h_score']) if match['was_home'] is True else float(match['team_a_score']) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)] if match['team_h_score'] and match['team_a_score'] is not None])
         team_goals_conceded_lastsix = np.median([float(match['goals_conceded']) for match in fpl_matches[len(fpl_matches)-games_considered:len(fpl_matches)] if match['team_h_score'] and match['team_a_score'] is not None])
@@ -177,6 +229,8 @@ class PlayerController:
             'minutes': [minutes_lastsix],
             'team_xGA': [team_xGA_lastsix],
             'team_xG': [team_xG_lastsix],
+            'opponent_xGA': [opponent_xGA],
+            'opponent_xG': [opponent_xG],
             'team_goals_conceded': [team_goals_conceded_lastsix],
             'team_goals_scored': [team_goals_scored_lastsix],
             'saves': [saves_lastsix],
@@ -191,11 +245,12 @@ class PlayerController:
         return pred[0], cv_error
 
 def main():
-    player_name = "Riyad Mahrez"
-    next_opponents = 1
+    player_name = "Jamie Vardy"
+    next_opponents = 2
 
     playerController = PlayerController(player_name=player_name)
     playerController.model_player_points()
+    # playerController.model_features()
 
     prediction, cv_err = playerController.predict_player_points(next_opponents=next_opponents, later_gw=0)
     print('Predicted Points over the next %d gameweeks: %f' % (next_opponents, prediction))
