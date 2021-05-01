@@ -13,7 +13,7 @@ import os
 from pointsPredictor import PointsPredictor
 
 class PlayerController:
-    def __init__(self, player_name):
+    def __init__(self, player_name=None):
         self.player_name = player_name
 
     async def get_player(self, name):
@@ -64,6 +64,16 @@ class PlayerController:
 
     def get_fpl_player_id(self, name):
         return self.find_player(name)['id']
+
+    def get_fpl_player_name(self, id):
+        url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
+        r = requests.get(url)
+        json = r.json()
+        players = json['elements']
+        for player in players:
+            if player['id'] == id:
+                position = "Goalkeeper" if player['element_type'] == 1 else "Defender" if player['element_type'] == 2 else "Midfielder" if player['element_type'] == 3 else "Striker"
+                return player['first_name'] + ' ' + player['second_name'], position
 
     def get_player_playing_chance(self, name):
         player = self.find_player(name)
