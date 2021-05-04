@@ -7,11 +7,6 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot
 
-import sys
-sys.path.append('../')
-import os
-from pointsPredictor import PointsPredictor
-
 class PlayerController:
     def __init__(self, player_name=None):
         self.player_name = player_name
@@ -76,7 +71,10 @@ class PlayerController:
         for player in players:
             if player['id'] == id:
                 position = "Goalkeeper" if player['element_type'] == 1 else "Defender" if player['element_type'] == 2 else "Midfielder" if player['element_type'] == 3 else "Striker"
-                return player['first_name'] + ' ' + player['second_name'], position
+                return {
+                    "name": player['first_name'] + ' ' + player['second_name'], 
+                    "position": position
+                }
 
     def get_playing_chance(self):
         player = self.find_player()
