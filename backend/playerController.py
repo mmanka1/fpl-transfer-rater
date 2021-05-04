@@ -65,7 +65,10 @@ class PlayerController:
     def get_fpl_player_id(self):
         return self.find_player()['id']
 
-    def get_fpl_player_name(self, id):
+    def get_fpl_player_cost(self):
+        return int(self.find_player()['now_cost']/10)
+
+    def get_fpl_player(self, id):
         url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
         r = requests.get(url)
         json = r.json()

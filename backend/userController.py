@@ -20,19 +20,26 @@ class UserController:
             await fpl.login(self.email, self.password)
             user = await fpl.get_user(self.id)
             team = await user.get_team()
-            players = [self.playerController.get_fpl_player_name(player['element']) for player in team]
-            return players
+            self.players = [(self.playerController.get_fpl_player(player['element']), int(player['selling_price'])/10) for player in team]
+            return self.players
                
-    async def get_user_transfer_status(self):
+    async def set_user_transfer_status(self):
         async with aiohttp.ClientSession() as session:
             fpl = FPL(session)
             await fpl.login(self.email, self.password)
             user = await fpl.get_user(self.id)
             status = await user.get_transfers_status()
-            return status['bank']/10, status['limit']
+            self.budget = status['bank']/10
+            self.transfer_limit = status['limit']
+    
+    def get_budget(self):
+        return self.budget
+
+    def get_transfer_limit(self):
+        return self.transfer_limit
 
 def main():
-    id = '' #Replace with 6 digit integer id
+    id = 1 #Replace with 6 digit integer id
     email = ''
     password = ''
     userController = UserController(264545, email, password)
@@ -40,9 +47,10 @@ def main():
     loop = asyncio.get_event_loop()
     task1 = loop.create_task(userController.get_user_team())
     user_team = loop.run_until_complete(task1)
+    print(user_team)
 
-    task2 = loop.create_task(userController.get_user_transfer_status())
-    budget_remaining, transfers_remaining = loop.run_until_complete(task2)
+    # task2 = loop.create_task(userController.get_user_transfer_status())
+    # budget_remaining, transfers_remaining = loop.run_until_complete(task2)
     
 if __name__ == '__main__':
     main()
