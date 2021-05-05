@@ -55,6 +55,9 @@ class PlayerController:
                     return "Wolverhampton Wanderers"
                 if team['name'] == "Newcastle":
                     return "Newcastle United"
+                if team['name'] == "Spurs":
+                    return "Tottenham"
+
                 return team['name']
 
     def get_fpl_player_id(self):
@@ -83,8 +86,8 @@ class PlayerController:
         #Find number of minutes played recently by player
         id = player['id']
         matches = self.get_player_fpl_matches(id)
-        total_minutes_played_lastsix = np.sum([match['minutes'] for match in matches[len(matches)-6:len(matches)]])
-        minutes_played_per_game = total_minutes_played_lastsix/6
+        total_minutes_played_lastthree = np.sum([match['minutes'] for match in matches[len(matches)-3:len(matches)]])
+        minutes_played_per_game = total_minutes_played_lastthree/3
 
         playing_chance = (minutes_played_per_game * (fitness/100))/90
         return playing_chance
@@ -166,6 +169,16 @@ class PlayerController:
         fpl_player_id = self.get_fpl_player_id()
         fpl_matches = self.get_player_fpl_matches(fpl_player_id)
         fpl_fixtures = self.get_player_fpl_fixtures(fpl_player_id)
+        fpl_gameweeks = {}
+        for fixture in fpl_fixtures:
+            if fixture['event'] in fpl_gameweeks:
+                fpl_gameweeks[fixture['event']].append(fixture)
+            else: 
+                fpl_gameweeks[fixture['event']] = [fixture]
+
+        fpl_gameweeks_list = list(fpl_gameweeks.items())
+        # print(fpl_gameweeks_list[0][1][0]['event_name'])
+        # print(fpl_gameweeks_list)
 
         #Compute median of data pertaining to the last 6 matches for player
         games_considered = 6
@@ -187,7 +200,7 @@ class PlayerController:
         team_xG_lastsix = np.median([float(stat[1]) for stat in team_stats if stat is not None])
 
         #Get opponent teams
-        opponent_teams = [self.find_team(match['team_a']) if match['is_home'] is True else self.find_team(match['team_h']) for match in fpl_fixtures[starting_gw:next_gws]]
+        opponent_teams = [self.find_team(match['team_a']) if match['is_home'] is True else self.find_team(match['team_h']) for gameweek in fpl_gameweeks_list[starting_gw:next_gws] for match in gameweek[1]]
         #Opponent xGA and xG
         task4 = [self.get_opponent_stats(opponent) for opponent in opponent_teams]
         results4 = asyncio.gather(*task4, return_exceptions=True)
@@ -203,11 +216,9 @@ class PlayerController:
         #If a few games left or less, only need to consider those games
         if len(fpl_fixtures) < next_gws:
             next_gws = len(fpl_fixtures)
-        next_opponent_attack_strength = np.median([float(self.get_fpl_opponent_strength(match['team_a'])[1]) if match['is_home'] is True else float(self.get_fpl_opponent_strength(match['team_h'])[1]) for match in fpl_fixtures[starting_gw:next_gws]])
-        next_opponent_defense_strength = np.median([float(self.get_fpl_opponent_strength(match['team_a'])[3]) if match['is_home'] is True else float(self.get_fpl_opponent_strength(match['team_h'])[2]) for match in fpl_fixtures[starting_gw:next_gws]])
-
-        #Check for player double gameweeks
-
+        next_opponent_attack_strength = np.median([float(self.get_fpl_opponent_strength(match['team_a'])[1]) if match['is_home'] is True else float(self.get_fpl_opponent_strength(match['team_h'])[1]) for gameweek in fpl_gameweeks_list[starting_gw:next_gws] for match in gameweek[1]])
+        next_opponent_defense_strength = np.median([float(self.get_fpl_opponent_strength(match['team_a'])[3]) if match['is_home'] is True else float(self.get_fpl_opponent_strength(match['team_h'])[2]) for gameweek in fpl_gameweeks_list[starting_gw:next_gws] for match in gameweek[1]])
+                
         #Set up data and dataframe
         player_data = {
             'xG': [xG_lastsix],
@@ -231,10 +242,9 @@ class PlayerController:
         }
         test_df = pd.DataFrame(data=player_data)
         
-        #Get points prediction and errors
-        pred = predictor.get_predictions(test_df)
-        cv_error = predictor.get_cv_error()
-        return pred[0], cv_error
+        #Get points prediction for each gameweek, considering number of matches in a gameweek could be > 1                
+        pred = predictor.get_predictions(test_df) * len(opponent_teams)/len(fpl_gameweeks_list)
+        return pred[0]
 
 def main():
     player_name = "Jamie Vardy"
