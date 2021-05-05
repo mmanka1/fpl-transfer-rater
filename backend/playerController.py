@@ -86,10 +86,12 @@ class PlayerController:
         #Find number of minutes played recently by player
         id = player['id']
         matches = self.get_player_fpl_matches(id)
-        total_minutes_played_lastthree = np.sum([match['minutes'] for match in matches[len(matches)-3:len(matches)]])
-        minutes_played_per_game = total_minutes_played_lastthree/3
-
-        playing_chance = (minutes_played_per_game * (fitness/100))/90
+        # total_minutes_played_lastthree = np.sum([match['minutes'] for match in matches[len(matches)-3:len(matches)]])
+        # minutes_played_per_game = total_minutes_played_lastthree/3
+        #Weight more recent matches more heavily
+        weighted_minutes_played = matches[len(matches)-3]['minutes'] + 2*matches[len(matches)-2]['minutes'] + 4*matches[len(matches)-1]['minutes']
+        #Chance playing scaled between 0 and 1
+        playing_chance = (weighted_minutes_played * (fitness/100))/630
         return playing_chance
 
     def get_player_fpl_matches(self, id):

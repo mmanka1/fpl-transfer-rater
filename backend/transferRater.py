@@ -39,14 +39,14 @@ class TransferRater:
     def get_feedback(self, bank, selling_price):
         #If the selling price of the player to transfer out + amount in the bank is less than target player's price
         if bank + selling_price < self.player_target.get_fpl_player_cost():
-            return "Insufficient funds for transfer."
-        if self.risk_reward_ratio > 0.5 or self.risk_reward_ratio < 0:
+            return "Insufficient funds for transfer.", 0
+        if self.risk_reward_ratio > 0.66 or self.risk_reward_ratio < 0 or self.risk_reward_ratio == -1*0.0:
             if self.get_expected_points_in() <= self.get_expected_points_out():
-                return "Likely not worth the transfer: expected to lose more points than gain."
+                return "Likely not worth the transfer: expected to lose more points than gain.", 1
             #If target is likely to play significantly less minutes than the player to transfer out - by a factor of > 30% of averaged minutes played in recent games
             if self.get_chance_playing_out() > self.get_chance_playing_in() + 0.30:
-                return "Likely not worth the transfer: target will likely play less minutes."
-            return "Likely not worth the transfer: more risk than reward in terms of points."
-        if self.risk_reward_ratio >= 0.33 and self.risk_reward_ratio <= 0.5:
-            return "Likely a safe transfer: little gain, little loss."
-        return "Likely a good transfer: expected to gain more points than lose."
+                return "Likely not worth the transfer: target will likely play less minutes.", 1
+            return "Likely not worth the transfer: determined by a combination of playing time and points expected", 1
+        if self.risk_reward_ratio >= 0.33 and self.risk_reward_ratio <= 0.66:
+            return "Likely a safe transfer: little gain, little loss.", 2
+        return "Likely a good transfer: expected to gain more points than lose.", 3
