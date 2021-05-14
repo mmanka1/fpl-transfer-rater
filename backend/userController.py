@@ -1,52 +1,45 @@
 from fpl import FPL
 from fpl.models.user import User
+import requests
 import aiohttp
 import asyncio
+
+from requests.api import request
 
 from playerController import PlayerController
 
 class UserController:
-    def __init__(self, user_id, email, password):
+    def __init__(self, user_id):
         self.id = user_id
-        self.email = email
-        self.password = password
         self.playerController = PlayerController()
 
     async def set_user_team(self):
         async with aiohttp.ClientSession() as session:
             fpl = FPL(session)
-            await fpl.login(self.email, self.password)
             user = await fpl.get_user(self.id)
-            team = await user.get_team()
+            my_teams = await user.get_picks()
+            self.curr_gw = len(my_teams)
+            current_team = my_teams[self.curr_gw]
             self.players = [{
                 "player": self.playerController.get_fpl_player(player['element']),
-                "selling_price": int(player['selling_price'])/10
                 } 
-            for player in team]
+            for player in current_team]
 
     def get_user_team(self):
         return self.players
         
-    async def set_user_transfer_status(self):
-        async with aiohttp.ClientSession() as session:
-            fpl = FPL(session)
-            await fpl.login(self.email, self.password)
-            user = await fpl.get_user(self.id)
-            status = await user.get_transfers_status()
-            self.bank = status['bank']/10
-            self.transfer_limit = status['limit']
+    async def set_bank(self):
+        url = 'https://fantasy.premierleague.com/api/entry/{}/event/{}/picks/'.format(self.id, self.curr_gw)
+        r = requests.get(url)
+        json = r.json()
+        self.bank = int(json['entry_history']['bank'])/10
     
     def get_bank(self):
         return self.bank
 
-    def get_free_transfer_limit(self):
-        return self.transfer_limit
-
 def main():
     id = 1 #Replace with 6 digit integer id
-    email = ''
-    password = ''
-    userController = UserController(id, email, password)
+    userController = UserController(id)
 
     loop = asyncio.get_event_loop()
     task1 = loop.create_task(userController.get_user_team())

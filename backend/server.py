@@ -7,8 +7,8 @@ from model import Model
 app = Flask(__name__)
 model = None
 
-def get_user(id, email, password):
-    return UserController(user_id=id,email=email, password=password)
+def get_user(id):
+    return UserController(user_id=id)
 
 @app.route('/')
 def welcome():
@@ -17,32 +17,39 @@ def welcome():
 @app.route('/myteam', methods=['POST', 'GET'])
 def my_team():
     try:
-        user = get_user(1, "", "")
+        user = get_user(264545)
         
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-        task = loop.create_task(user.set_user_team())
-        loop.run_until_complete(task)
+        #Get team picks
+        task1 = loop.create_task(user.set_user_team())
+        loop.run_until_complete(task1)
         team = user.get_user_team()
+
+        #Get bank
+        task2 = loop.create_task(user.set_bank())
+        loop.run_until_complete(task2)
+        bank = user.get_bank()
         response = make_response(
             jsonify(
                 {
                     "error": False,
                     "message":{
-                        "team": team
+                        "team": team,
+                        "bank": bank
                     }
                 }
             )
         )
         response.headers["Content-Type"] = "application/json"
         return response
-    except:
+    except Exception as exception:
         response = make_response(
             jsonify(
                 {
                     "error": True,
-                    "message": "failure occurred while retrieving team information"
+                    "message": "failure occurred while retrieving team information: {}".format(exception)
                 }
             )
         )
@@ -80,7 +87,7 @@ def train():
 def rater():
     try: 
         if model is not None:
-            user = get_user(1, "", "")
+            user = get_user(264545)
 
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -88,9 +95,8 @@ def rater():
             task = loop.create_task(user.set_user_transfer_status())
             loop.run_until_complete(task)
             bank = user.get_bank()
-            free_transfers = user.get_free_transfer_limit()
 
-            rater = TransferRater(predictor=model.get_model(), free_transfers=free_transfers, player_out="Harry Kane", player_target="Chris Wood", next_gws=4, starting_gw=0)
+            rater = TransferRater(predictor=model.get_model(), player_out="Harry Kane", player_target="Chris Wood", next_gws=4, starting_gw=0)
             r = rater.get_feedback(bank=bank, selling_price=10.2)
             feedback = r[0]
             rating = r[1]

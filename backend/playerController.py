@@ -64,7 +64,7 @@ class PlayerController:
         return self.find_player()['id']
 
     def get_fpl_player_cost(self):
-        return int(self.find_player()['now_cost']/10)
+        return int(self.find_player()['now_cost'])/10
 
     def get_fpl_player(self, id):
         url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
@@ -74,9 +74,11 @@ class PlayerController:
         for player in players:
             if player['id'] == id:
                 position = "Goalkeeper" if player['element_type'] == 1 else "Defender" if player['element_type'] == 2 else "Midfielder" if player['element_type'] == 3 else "Striker"
+                cost = int(player['now_cost'])/10
                 return {
                     "name": player['first_name'] + ' ' + player['second_name'], 
-                    "position": position
+                    "position": position,
+                    "cost": cost
                 }
 
     def get_playing_chance(self):

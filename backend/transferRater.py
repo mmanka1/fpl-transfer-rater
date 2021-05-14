@@ -1,11 +1,10 @@
 from playerController import PlayerController
 
 class TransferRater:
-    def __init__(self, predictor, free_transfers, player_out, player_target, next_gws, starting_gw=0):
+    def __init__(self, predictor, player_out, player_target, next_gws, starting_gw=0):
         #Instantiate controllers for each player
         self.player_out = PlayerController(player_name=player_out)
         self.player_target = PlayerController(player_name=player_target)
-        self.free_transfers = free_transfers
 
         #Get predicted points and chance of playing next round for the player to be transferred out
         self.predicted_points_player_out = self.player_out.predict_player_points(predictor=predictor, next_gws=next_gws, starting_gw=starting_gw)
@@ -15,9 +14,8 @@ class TransferRater:
         self.predicted_points_target = self.player_target.predict_player_points(predictor=predictor, next_gws=next_gws, starting_gw=starting_gw)
         self.chance_playing_target = self.player_target.get_playing_chance()
 
-        hit = 0 if free_transfers > 0 else 4
-        risk = (self.predicted_points_player_out + hit) - (self.predicted_points_player_out*self.chance_playing_player_out)
-        reward = (self.predicted_points_target*self.chance_playing_target) - (self.predicted_points_player_out + hit)
+        risk = (self.predicted_points_player_out) - (self.predicted_points_player_out*self.chance_playing_player_out)
+        reward = (self.predicted_points_target*self.chance_playing_target) - (self.predicted_points_player_out)
 
         self.risk_reward_ratio = risk/reward
 
