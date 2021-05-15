@@ -1,23 +1,32 @@
-from flask import Flask, request, make_response, jsonify
+from flask import Flask, request, make_response, jsonify, request
+from flask_cors import CORS, cross_origin
+app = Flask(__name__)
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
 import asyncio
 from transferRater import TransferRater
 from userController import UserController
 from model import Model
 
-app = Flask(__name__)
 model = None
 
 def get_user(id):
     return UserController(user_id=id)
 
 @app.route('/')
+@cross_origin()
 def welcome():
     return 'Welcome'
 
 @app.route('/myteam', methods=['POST', 'GET'])
+@cross_origin()
 def my_team():
     try:
-        user = get_user(264545)
+        id = request.args.get("id")
+
+        print(id)
+        user = get_user(id)
         
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -57,6 +66,7 @@ def my_team():
         return response
 
 @app.route('/train', methods=['POST', 'GET'])
+@cross_origin()
 def train():
     try:
         global model
@@ -84,6 +94,7 @@ def train():
         return response
 
 @app.route('/rate', methods=['GET'])
+@cross_origin()
 def rater():
     try: 
         if model is not None:

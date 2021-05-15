@@ -1,15 +1,27 @@
 import './App.css';
+import React from "react"
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route
+} from "react-router-dom";
 import PortalView from './components/portalView'; 
+import TeamView from './components/teamView'; 
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <div>
-          <PortalView/>
-        </div>
-      </header>
-    </div>
+    <Router>
+      <div className="App">
+        <Switch>
+          <Route path="/">
+            <PortalView />
+          </Route>
+          <Route path="/team">
+            <TeamView/>
+          </Route>
+        </Switch>
+      </div>
+    </Router>
   );
 }
 
