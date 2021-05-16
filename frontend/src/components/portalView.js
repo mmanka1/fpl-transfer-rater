@@ -4,9 +4,8 @@ import {getTeam} from '../controllers/userController';
 
 const PortalView = () => {
     const [id, setId] = useState('')
-    const [team, setTeam] = useState('')
-    const [bank, setBank] = useState('')
     const [error, setError] = useState('')
+    const [userData, setUserData] = useState('')
 
     const handleChange = (event) => {
         setId(event.target.value)
@@ -20,8 +19,7 @@ const PortalView = () => {
                 if (res.error == true){
                     setError(res.message)
                 } else {
-                    setTeam(res.message.team)
-                    setBank(res.message.bank)
+                    setUserData(res.message)
                 }
             })
             .catch(err => {
@@ -33,12 +31,11 @@ const PortalView = () => {
     return (
         <>
         {
-            team != '' ? (
+            userData != '' ? (
                 <Redirect to = {{
                     pathname: "/team",
                     state: {
-                        team: team,
-                        bank: bank
+                        userData: userData
                     }
                 }}/>
             ) : (
