@@ -13,10 +13,10 @@ function App() {
     <Router>
       <div className="App">
         <Switch>
-          <Route path="/">
+          <Route exact path="/">
             <PortalView />
           </Route>
-          <Route path="/team">
+          <Route exact path="/team">
             <TeamView/>
           </Route>
         </Switch>

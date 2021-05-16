@@ -1,13 +1,17 @@
 import {React, useState} from 'react'
+import {useLocation} from 'react-router-dom';
 
 const TeamView = (props) => {
-    const [currTeam, setCurrTeam] = useState(props.location.state.team)
+    const location = useLocation()
+    const [currTeam, setCurrTeam] = useState(location.state.team)
+    const [currBank, setCurrBank] = useState(location.state.bank)
+    console.log(currTeam)
     return (
         <div>
             <ul>
                 {
                     currTeam.map(player => {
-                        <li>{player.player.name}</li>
+                        return <li>{player.player.name}</li>
                     })
                 }
             </ul>

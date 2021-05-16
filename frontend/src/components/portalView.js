@@ -1,10 +1,11 @@
-import React, {useState} from 'react';
+import {React, useState} from 'react';
 import {Redirect} from 'react-router-dom';
 import {getTeam} from '../controllers/userController';
 
 const PortalView = () => {
     const [id, setId] = useState('')
     const [team, setTeam] = useState('')
+    const [bank, setBank] = useState('')
     const [error, setError] = useState('')
 
     const handleChange = (event) => {
@@ -19,7 +20,8 @@ const PortalView = () => {
                 if (res.error == true){
                     setError(res.message)
                 } else {
-                    setTeam(res.message)
+                    setTeam(res.message.team)
+                    setBank(res.message.bank)
                 }
             })
             .catch(err => {
@@ -29,30 +31,36 @@ const PortalView = () => {
     };
 
     return (
-        <div>
-            <form onSubmit ={handleSubmit}>
-            <h3>Find my team</h3>
-                <input type = "text" name = "id" placeholder = "Enter id" onChange={handleChange}/>
-                <input type = "submit" value ="Get Team"/>
-            </form>  
-            <div>
-            {
-                error != '' ? (
+        <>
+        {
+            team != '' ? (
+                <Redirect to = {{
+                    pathname: "/team",
+                    state: {
+                        team: team,
+                        bank: bank
+                    }
+                }}/>
+            ) : (
+                <div>
+                    <form onSubmit ={handleSubmit}>
+                    <h3>Find my team</h3>
+                        <input type = "text" name = "id" placeholder = "Enter id" onChange={handleChange}/>
+                        <input type = "submit" value ="Get Team"/>
+                    </form>  
                     <div>
-                        <h4>{error}</h4>
+                    {
+                        error != '' ? (
+                            <div>
+                                <h4>{error}</h4>
+                            </div>
+                        ) : <></>
+                    }
                     </div>
-                ) :
-                (
-                    <Redirect to = {{
-                        pathname: "/team",
-                        state: {
-                            team: team
-                        }
-                    }}/>
-                )  
-            }
-            </div>
-        </div>
+                </div>
+            )
+        }
+        </>
     )
 }
 
