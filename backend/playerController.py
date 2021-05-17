@@ -10,7 +10,14 @@ from matplotlib import pyplot
 class PlayerController:
     def __init__(self, player_name=None):
         self.player_name = player_name
-            
+
+    #Get all fpl players
+    def get_all_players(self):
+        url = 'https://fantasy.premierleague.com/api/bootstrap-static/'
+        r = requests.get(url)
+        json = r.json()
+        return [player['first_name'] + ' ' + player['second_name'] for player in json['elements']]
+
     async def get_player(self):
         async with aiohttp.ClientSession() as session:
             understat = Understat(session)

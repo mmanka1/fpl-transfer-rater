@@ -7,6 +7,7 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 import asyncio
 from transferRater import TransferRater
 from userController import UserController
+from playerController import PlayerController
 from model import Model
 
 model = None
@@ -59,6 +60,35 @@ def my_team():
                 {
                     "error": True,
                     "message": "failure occurred while retrieving team information: {}".format(exception)
+                }
+            )
+        )
+        response.headers["Content-Type"] = "application/json"
+        return response
+
+
+@app.route('/players', methods=['POST', 'GET'])
+@cross_origin()
+def players():
+    try:
+        playerController = PlayerController()
+        response = make_response(
+            jsonify(
+                {
+                    "error": False,
+                    "message": [{'name': player, 'value': player} for player in playerController.get_all_players()]
+                } 
+            )
+        )
+        response.headers["Content-Type"] = "application/json"
+        return response
+
+    except Exception as exception:
+        response = make_response(
+            jsonify(
+                {
+                    "error": True,
+                    "message": "failure occurred while retrieving all players: {}".format(exception)
                 }
             )
         )
